@@ -198,6 +198,7 @@ Here is an example of setting your global identity:
 ```sh
 git config --global user.name "ORaineteau"
 git config --global user.email "ORaineteau@gitlab.com"
+```
 
 ### Contact
 olivier.raineteau@inserm.fr
