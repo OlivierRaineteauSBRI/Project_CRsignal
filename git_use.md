@@ -153,7 +153,7 @@ Adding collaborators allows others to contribute to your project. They will be a
 
 2. **Navigate to the Settings:**
    - On GitLab: Click on `Settings` > `Members`.
-   - On GitHub: Click on `Settings` > `Manage access` > `Invite a collaborator`.
+   - On GitHub: Click on `Settings` > `Manage access` or `Collaborators` > `Invite a collaborator`.
 
 3. **Invite Collaborators:**
    - Enter the GitLab or GitHub username or email address of the person you want to invite.
