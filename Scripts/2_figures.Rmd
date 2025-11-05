@@ -1,0 +1,1016 @@
+---
+title: "Figures_paper"
+author: "Capeliez"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+---
+
+```{r librairies, message=FALSE, include= F}
+library(ClusterMap)
+library(circlize)
+library(grid)
+library(gridExtra)
+library(ComplexHeatmap)
+library(BPCells)
+library(Seurat)
+library(SeuratObject)
+library(SeuratDisk)
+library(Nebulosa)
+library(viridis)
+library(hrbrthemes)
+library(data.table)
+library(ggplot2)
+library(stringr)
+library(dplyr)
+library(cowplot)
+library(slingshot)
+library(SCpubr)
+library(patchwork)
+library(CellChat)
+library(magrittr)
+library(tidyverse)
+library(plotly)
+library(DT)
+library(reshape2)
+library(pheatmap)
+library(tibble)
+library(DelayedMatrixStats)
+options(future.globals.maxSize = 8000 * 1024^2)
+options(Seurat.object.assay.version = "v5")
+```
+
+# Loading Data
+
+```{r dataset}
+mergedALL <- readRDS("~/Script_article_amele/Data/data_processed/mergedALL.rds")
+marcysubP2b <- readRDS("~/Script_article_amele/Data/data_processed/marcyfig3.rds")
+dibellasubset <- readRDS("~/Script_article_amele/Data/data_processed/dibellasubsetfig3.rds")
+LooP0E14 <- readRDS("~/Script_article_amele/Data/data_processed/LooP0E14.rds")
+Cajal <- readRDS("~/Script_article_amele/Data/data_processed/Cajal_fig3.rds")
+mergedALL2 <- readRDS("~/Script_article_amele/Data/data_processed/mergedALL_unintegrated.rds")
+cellchat <- readRDS("~/Script_article_amele/Data/data_processed/cellchatfig3.rds")
+```
+
+# Figure 3
+
+## Panel B
+
+```{r process_umap_panelB, message=FALSE, error=FALSE, echo = FALSE}
+Idents(mergedALL) <- "dataset"
+
+dataset_colors <- list(
+  dib   = "#e49d6b",
+  Loo   = "#c46966",
+  marcy = "#7da7ad"
+)
+
+umap_function <- function(sample, dataset, color) {
+  SCpubr::do_DimPlot(
+    sample = sample,
+    cells.highlight = WhichCells(sample, expression = dataset == !!dataset),
+    colors.use = color
+  ) +
+    ggtitle(paste("Cluster:", dataset)) +
+    cowplot::theme_half_open() +
+    theme(
+      axis.text = element_blank(),
+      axis.ticks = element_blank(),
+      plot.title = element_text(hjust = 0.5)
+    ) +
+    NoLegend()
+}
+
+p_dib   <- umap_function(mergedALL, "dib", dataset_colors$dib)
+p_loo   <- umap_function(mergedALL, "Loo", dataset_colors$Loo)
+p_marcy <- umap_function(mergedALL, "marcy", dataset_colors$marcy)
+
+p_dib
+p_loo
+p_marcy
+
+
+##Optional : save plots 
+# ggsave("C:/Users/raine/Desktop/Analyse/Results/p_dib.pdf", plot = p_dib, width = 6, height = 5, units = "in", dpi = 600)
+# ggsave("C:/Users/raine/Desktop/Analyse/Results/p_loo.pdf", plot = p_loo, width = 6, height = 5, units = "in", dpi = 600)
+# ggsave("C:/Users/raine/Desktop/Analyse/Results/p_marcyt.pdf", plot = p_marcy, width = 6, height = 5, units = "in", dpi = 600)
+```
+
+
+
+## Panel C
+
+```{r umap_newident, echo =  FALSE}
+Idents(mergedALL) = "new_ident"
+colors <- c(
+  "qNSCs"       = "#003f5c",
+  "aNSCs"       = "#C7E9B4",
+  "Oligo"       = "#ffa600",
+  "NP"          = "#7FCDBB",
+  "ImAstro"     = "#225EA8",
+  "CR"          = "#fecc00",
+  "Neuroblasts" = "#e8f5a2",
+  "RG"          = "#1D91C0"
+)
+
+umap_new_idents <- SCpubr::do_DimPlot(mergedALL,
+                                      reduction = "umap",
+                                      colors.use = colors,
+                                      label.size = 4,
+                                      label = TRUE,
+                                      repel = TRUE,
+                                      pt.size = 0.7) +
+  theme_cowplot() +
+  ggtitle("New_Idents based on cluster subtypes")+
+  labs(x = NULL, y = NULL) +
+  theme(
+    axis.ticks = element_blank(),
+    axis.text = element_blank())
+
+# Optional : save the plot
+ggsave("~/Script_article_amele/Results/new_clusters_idents_umap.pdf", plot = umap_new_idents, width = 9, height = 6, units = "in", dpi = 600)
+
+umap_new_idents
+```
+
+## Panel D
+
+```{r Violin_plot_markers, echo =  FALSE}
+
+new_order <- c("Oligo",
+               "ImAstro",
+               "qNSCs",
+               "aNSCs",
+               "NP",
+               "RG",
+               "Neuroblasts",
+               "CR")
+mergedALL$new_ident <- factor(mergedALL$new_ident, levels = new_order)
+
+features_of_interest <- unique(c(
+  "Olig2", "Sox10", "Pdgfra",
+  "Aldh1l1","Gfap", "Aqp4", "Glul",
+  "Hopx", "Id4",
+  "Mki67",
+  "Neurog2", 
+  "Nes", "Pax6",
+  "Nes","Vim","Ccnb1","Cdk1","Tubb3",
+  "Rtn1", "Dcx","Reln",
+  "Trp73"
+))
+
+# Retrieve data for all genes and clusters 
+data <- FetchData(mergedALL, vars = c(features_of_interest, "new_ident"))
+
+data_long <- pivot_longer(data,
+                          cols = all_of(features_of_interest),
+                          names_to = "Gene", values_to = "Expression") %>%
+  mutate(Gene = factor(Gene,
+                       levels = features_of_interest))
+
+# Violin plot 
+violin_plot <- ggplot(data_long,
+            aes(x = new_ident,
+                y = Expression,
+                fill = new_ident)) +
+  geom_violin(scale = "width",
+              trim = FALSE,
+              adjust = 1) +
+  scale_fill_manual(values = colors) +
+  facet_wrap(~ Gene, ncol = 1, strip.position = "left", scales = "free_y") +
+theme_minimal(base_size = 12) +
+theme(
+  panel.grid.major = element_blank(),  
+  panel.grid.minor = element_blank(),  
+  panel.background = element_blank(), 
+  strip.background = element_blank(),
+  axis.text.x = element_text(angle = 45, hjust = 1, size = 22),
+  strip.text.y.left = element_text(angle = 0, size = 22, face = "bold"),
+  axis.text.y = element_blank(),
+  axis.ticks.y = element_blank(),
+  axis.title.y = element_blank(),
+  axis.title.x = element_blank(),
+  legend.position = "none",
+  panel.spacing.y = unit(0, "lines")
+)
+
+violin_plot
+
+## Optional : save the plot
+# ggsave("C:/Users/raine/Desktop/Analyse/Results/stacked_vln_markers.pdf", plot = violin_plot, width = 5, height = 11, units = "in", dpi = 600)
+```
+
+## Panel E
+
+```{r combined_CR_markers, echo = FALSE, message=FALSE}
+features <- c("Reln", "Calb2", "Trp73", "Nr2f2")
+
+combined_markers <- SCpubr::do_NebulosaPlot(sample = mergedALL,
+                                            features = features,
+                                            combine = FALSE,
+                                            reduction = "umap") +
+  ggtitle("Combined CR Markers")
+
+combined_markers[[4]]
+## Optional : save the plot
+# ggsave("C:/Users/raine/Desktop/Analyse/Results/Combined_CR_Markers_KDE.pdf", plot = combined_markers, width = 6, height = 10, units = "in", dpi = 600)
+
+```
+
+## Panel F
+
+```{r slingshot_lineages, error=FALSE, message=FALSE, echo = FALSE}
+
+colorsgd <- c("#F7FCC9", "#A9DCB8", "#2459A5", "#14152F")
+
+# UMAP embeddings & Slingshot
+umap.embeddings <- Embeddings(Cajal, reduction = "umap.pca", verbose = FALSE)
+slingshot.obj   <- slingshot(
+  umap.embeddings,
+  clusterLabels = Cajal$pca_clusters,
+  start.clus    = 0
+)
+
+# Assign pseudotime
+Cajal$pseudotime <- slingPseudotime(slingshot.obj)[, 1]
+
+# Data for plotting 
+plot_data <- data.frame(
+  UMAP_1     = umap.embeddings[, 1],
+  UMAP_2     = umap.embeddings[, 2],
+  Cluster    = Cajal$pca_clusters,
+  Pseudotime = Cajal$pseudotime
+)
+
+# Base UMAP plot
+pseudotime <- ggplot(plot_data, aes(x = UMAP_1, y = UMAP_2)) +
+  geom_point(aes(color = Pseudotime), size = 2) +
+  scale_color_viridis_c(option = "mako", direction = -1, name = "Pseudotime") +
+  labs(
+    title    = "UMAP with Slingshot Lineages",
+    x = "UMAP 1", y = "UMAP 2", color = "Pseudotime"
+  ) +
+  theme(
+    base_size       = 15,
+    plot.title      = element_text(hjust = 0.5, face = "bold", size = 18),
+    plot.subtitle   = element_text(hjust = 0.5, size = 14, margin = margin(b = 10)),
+    legend.position = "right",
+    axis.title      = element_text(face = "bold", color = "black"),
+    axis.text       = element_text(color = "black"),
+    axis.line       = element_line(color = "black", size = 0.5),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.background = element_rect(fill = "white", color = NA),
+    plot.background  = element_rect(fill = "white", color = NA)
+  )
+
+# Adding overlay lineage curves
+for (curve in slingCurves(slingshot.obj)) {
+  curve_data <- as.data.frame(curve$s)
+  colnames(curve_data) <- c("UMAP_1", "UMAP_2")
+  
+  pseudotime <- pseudotime + geom_path(
+    data = curve_data,
+    aes(x = UMAP_1, y = UMAP_2),
+    color = "black", size = 1.5, alpha = 0.8,
+    lineend = "round", linetype = "dashed"
+  )
+}
+
+
+pseudotime <- pseudotime + annotate(
+  "text",
+  x = max(plot_data$UMAP_1) - 20,
+  y = max(plot_data$UMAP_2) - 4,
+  label = "Key Lineage Path",
+  size = 5, color = "black", hjust = 0
+)
+
+pseudotime
+
+## Optional save
+# ggsave("C:/Users/raine/Desktop/Analyse/Results/cajal_umap_lineage.pdf", pseudotime, width = 7, height = 5, units = "in", dpi = 600)
+
+```
+
+## Panel G
+
+```{r Pseudotime_markers, echo = FALSE, message=FALSE, error=FALSE}
+plot_data$Reln_expression  <- as.numeric(Cajal@assays$RNA@data["Reln", ])
+plot_data$Gdf5_expression  <- as.numeric(Cajal@assays$RNA@data["Gdf5", ])
+plot_data$Trp73_expression <- as.numeric(Cajal@assays$RNA@data["Trp73", ])
+
+Reln_pseudotime <- ggplot(plot_data, aes(x = Pseudotime, y = Reln_expression)) +
+  geom_point(aes(color = Pseudotime), size = 2) +
+  scale_color_gradientn(colors = colorsgd, name = "Pseudotime") +
+  geom_smooth(method = "loess", color = "black") +
+  labs(
+    title = "Reln",
+    x = "Pseudotime",
+    y = "Reln Expression"
+  ) +
+  theme(
+    base_size = 15,
+    plot.title = element_text(hjust = 0.5, face = "bold", size = 18),
+    legend.position = "right",
+    axis.title = element_text(face = "bold", color = "black"),
+    axis.text = element_text(color = "black"),
+    axis.line = element_line(color = "black", size = 0.5),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.background = element_rect(fill = "white", color = NA),
+    plot.background = element_rect(fill = "white", color = NA)
+  )
+
+Trp73_pseudotime <- ggplot(plot_data, aes(x = Pseudotime, y = Trp73_expression)) +
+  geom_point(aes(color = Pseudotime), size = 2) +
+  scale_color_gradientn(colors = colorsgd, name = "Pseudotime") +
+  geom_smooth(method = "loess", color = "black") +
+  labs(
+    title = "Trp73",
+    x = "Pseudotime",
+    y = "Trp73 Expression"
+  ) +
+  theme(
+    base_size = 15,
+    plot.title = element_text(hjust = 0.5, face = "bold", size = 18),
+    legend.position = "right",
+    axis.title = element_text(face = "bold", color = "black"),
+    axis.text = element_text(color = "black"),
+    axis.line = element_line(color = "black", size = 0.5),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.background = element_rect(fill = "white", color = NA),
+    plot.background = element_rect(fill = "white", color = NA)
+  )
+
+Gdf5_pseudotime <- ggplot(plot_data, aes(x = Pseudotime, y = Gdf5_expression)) +
+  geom_point(aes(color = Pseudotime), size = 2) +
+  scale_color_gradientn(colors = colorsgd, name = "Pseudotime") +
+  geom_smooth(method = "loess", color = "black") +
+  labs(
+    title = "Gdf5",
+    x = "Pseudotime",
+    y = "Gdf5 Expression"
+  ) +
+  theme(
+    base_size = 15,
+    plot.title = element_text(hjust = 0.5, face = "bold", size = 18),
+    legend.position = "right",
+    axis.title = element_text(face = "bold", color = "black"),
+    axis.text = element_text(color = "black"),
+    axis.line = element_line(color = "black", size = 0.5),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.background = element_rect(fill = "white", color = NA),
+    plot.background = element_rect(fill = "white", color = NA)
+  )
+
+Reln_pseudotime
+Trp73_pseudotime
+Gdf5_pseudotime
+
+
+## Optional save 
+# ggsave("cajal_relnexp.pdf", plot = Reln_pseudotime, width = 6, height = 5, units = "in", dpi = 600)
+# ggsave("cajal_Trp73exp.pdf", plot = Trp73_pseudotime, width = 6, height = 5, units = "in", dpi = 600)
+# ggsave("cajal_Gdf5exp.pdf", plot = Gdf5_pseudotime, width = 6, height = 5, units = "in", dpi = 600)
+
+```
+
+# Figure 4
+
+## Panel A
+
+```{r cellchat_bmp_signaling, error=FALSE, echo = FALSE, message=FALSE}
+# Extract BMP matrix
+bmp_mat <- cellchat@netP$prob[, , "BMP"]
+
+rownames(bmp_mat) <- gsub("&", ".", rownames(bmp_mat))
+colnames(bmp_mat) <- gsub("&", ".", colnames(bmp_mat))
+rownames(bmp_mat) <- gsub(" ", "_", rownames(bmp_mat))
+colnames(bmp_mat) <- gsub(" ", "_", colnames(bmp_mat))
+
+# Define cluster colors
+cluster_colors <- c(
+  # Oligodendrocytes
+  Loo_Oligo = "#ffa600",
+  dib_Oligo = "#ffa600",
+  marcy_Oligos = "#ffa600",
+  
+  # Astrocytes
+  Loo_Astro_i1 = "#225EA8",
+  Loo_Astro_i2 = "#225EA8",
+  dib_Astro = "#225EA8",
+  marcy_Astrocytes = "#225EA8",
+  
+  # C&Rc
+  dib_C.Rc = "#fecc00",
+  Loo_C.Rc_P = "#fecc00",
+  Loo_C.Rc_E = "#f6ef5f",
+  
+  # Radial glia and SVZ lineages
+  Loo_RG1 = "#1D91C0",
+  Loo_RG2 = "#1D91C0",
+  Loo_RG3 = "#1D91C0",
+  Loo_RG4 = "#1D91C0",
+  Loo_SVZ1_mig_P = "#1D91C0",
+  Loo_SVZ2_migrating = "#1D91C0",
+  Loo_SVZ2_SVZ_E = "#1D91C0",
+  Loo_SVZ3_Pro_E = "#1D91C0",
+  
+  # Progenitors / NSCs
+  dib_progenitors = "#7FCDBB",
+  dib_AP = "#7FCDBB",
+  marcy_aNSCs = "#7FCDBB",
+  marcy_TAPs = "#7FCDBB",
+  marcy_qNSCs = "#7FCDBB"
+)
+
+# Define desired order
+my_order <- c(
+  # Oligo
+  "Loo_Oligo", "dib_Oligo", "marcy_Oligos",
+  
+  # Astro
+  "Loo_Astro_i1", "Loo_Astro_i2", "dib_Astro", "marcy_Astrocytes",
+  
+  # C&Rc
+  "dib_C.Rc", "Loo_C.Rc_P", "Loo_C.Rc_E",
+  
+  # RG / SVZ
+  "Loo_RG1", "Loo_RG2", "Loo_RG3", "Loo_RG4",
+  "Loo_SVZ1_mig_P", "Loo_SVZ2_migrating", "Loo_SVZ2_SVZ_E", "Loo_SVZ3_Pro_E",
+  
+  # Progenitors
+  "dib_progenitors", "dib_AP", "marcy_aNSCs", "marcy_TAPs", "marcy_qNSCs"
+)
+
+# Subset to only existing rows/cols 
+valid_order <- intersect(my_order, rownames(bmp_mat))
+bmp_mat <- bmp_mat[valid_order, valid_order]
+
+# Create annotations
+annotation_row <- data.frame(Cluster = factor(valid_order, levels = valid_order))
+annotation_col <- data.frame(Cluster = factor(valid_order, levels = valid_order))
+rownames(annotation_row) <- valid_order
+rownames(annotation_col) <- valid_order
+ann_colors <- list(Cluster = cluster_colors)
+
+heatmap_cellchat <- pheatmap(
+  bmp_mat,
+  cluster_rows = FALSE,
+  cluster_cols = FALSE,
+  annotation_row = annotation_row,
+  annotation_col = annotation_col,
+  annotation_colors = ann_colors,
+  color = colorRampPalette(c("#e4f0e8", "#45BF55", "#044D29", "#00261C"))(100),
+  fontsize_row = 8,
+  fontsize_col = 8,
+  border_color = NA,
+  main = "BMP Signaling Targets"
+)
+
+heatmap_cellchat
+
+# Optionally save
+# pdf("C:/Users/raine/Desktop/Analyse/Results/BMP_Signaling_Heatmap.pdf", width = 6, height = 5)
+#     draw(heatmap_cellchat)
+#     dev.off()
+```
+
+## Panel B
+
+```{r circosplots, fig.width=8, fig.height=6, echo = FALSE, message=FALSE, error=FALSE}
+Idents(mergedALL) <- "merged_idents"
+cell_types <- levels(cellchat@idents)
+
+pairBMP <- extractEnrichedLR(cellchat, signaling = "BMP", geneLR.return = FALSE)
+
+# Assign the pastel colors for datasets
+color_vector <- c(
+    rep("#f59f9f", 5),   # dib clusters
+    rep("#ebb986", 7),   # Loo clusters
+    rep("#b1dce6", 7)    # marcy clusters
+)
+
+color_vector[c(3, 8, 11, 13, 14, 16, 17, 18)] <- c("#9b2226", "#ca6702","#ca6702","#ca6702", "#005f73","#005f73","#005f73", "#005f73")
+names(color_vector) <- cell_types
+
+chord1 <- netVisual_individual(cellchat, signaling = "BMP",  pairLR.use = pairBMP[7,], color.use = color_vector, layout = "chord")
+
+chord2 <- netVisual_individual(cellchat, signaling = "BMP", pairLR.use = pairBMP[8,], color.use = color_vector, layout = "chord")
+
+## Optional save
+# pdf("C:/Users/raine/Desktop/Analyse/Results/bmpcircosplot.pdf", width = 6, height = 5)
+#     chord1
+#     chord2
+#     dev.off()
+
+```
+
+# Supplementary figure
+
+## Figure 3
+
+### Panel A
+
+```{r umap_unintegrated, error=FALSE, message=FALSE, echo = FALSE}
+Idents( mergedALL2) = "dataset"
+
+colors <- c("dib" = "#9b2226",
+            "Loo" = "#ca6702",
+            "marcy" = "#005f73")
+
+plot <- SCpubr::do_DimPlot(mergedALL2,
+        reduction = "umap.unintegrated",
+        pt.size = 0.5,
+        colors.use = colors)+theme_classic()+NoLegend()+ xlim (c(-15, 15))+ ylim (c(-15, 15))
+plot 
+# ggsave("C:/Users/raine/Desktop/Analyse/Results/plotallunintegrated.pdf", plot = plot, width = 4, height = 4, units = "in", dpi = 600)
+
+```
+
+### Panel B
+
+```{r histogram_count_cell, echo = FALSE, message=FALSE, error=FALSE}
+# Count cells per dataset
+cell_counts <- table(mergedALL$dataset) %>% as.data.frame()
+colnames(cell_counts) <- c("dataset", "count")
+
+# Calculate percentage
+cell_counts <- cell_counts %>%
+  mutate(percent = count / sum(count) * 100,
+         label = paste0(round(percent, 1), "%"))
+
+# Plot with percentage labels inside bars
+count <- ggplot(cell_counts, aes(x = dataset, y = count, fill = dataset)) +
+  geom_bar(stat = "identity") +
+  geom_text(aes(label = label), vjust = 1.5, size = 5, color = "black") +  # Adjust vjust for position inside bar
+  scale_fill_manual(values = c("dib" = "#E6897C", "Loo" = "#F2D699", "marcy" = "#c2edf7")) +
+  theme_minimal(base_size = 17) +
+  theme(legend.position = "none") +
+  labs(title = "Number of cells per dataset", x = NULL, y = "Cell count")
+
+count
+
+# ggsave("C:/Users/raine/Desktop/Analyse/Results/histo.pdf", plot = count, width = 3, height = 4, units = "in", dpi = 600)
+
+
+```
+
+### Panel C to G
+
+```{r celltype_umap_highlight, echo = FALSE, error=FALSE, message=FALSE}
+Idents(mergedALL2) <- "mergeID"
+
+base_colors <- c(
+  "Loo_Oligo"               = "#e9d8a6",
+  "Loo_SVZ2 migrating 8-P"  = "#e9d8a6",
+  "Loo_Astro_i1"            = "#e9d8a6",
+  "Loo_SVZ1_mig_P"          = "#e9d8a6",
+  "Loo_C&Rc_P"              = "#e9d8a6",
+  "Loo_Astro_i2"            = "#e9d8a6",
+  "Loo_RG1"                 = "#e9d8a6",
+  "Loo_RG4"                 = "#e9d8a6",
+  "Loo_SVZ3_Pro_E"          = "#e9d8a6",
+  "Loo_SVZ2_SVZ_E"          = "#e9d8a6",
+  "Loo_RG3"                 = "#e9d8a6",
+  "Loo_RG2"                 = "#e9d8a6",
+  "Loo_C&Rc_E"              = "#e9d8a6",
+  "dib_progenitors"         = "#ffb5ab",
+  "dib_Apical progenitors"  = "#ffb5ab",
+  "dib_C&Rc"                = "#ffb5ab",
+  "dib_Astro"               = "#ffb5ab",
+  "dib_Oligo"               = "#ffb5ab",
+  "marcy_P2_aNSCs"          = "#c2edf7",
+  "marcy_P2_Oligo"          = "#c2edf7",
+  "marcy_P2_Neuroblasts"    = "#c2edf7",
+  "marcy_P2_TAPs"           = "#c2edf7",
+  "marcy_P2_qNSCs"          = "#c2edf7",
+  "marcy_P2_Astro"          = "#c2edf7"
+)
+
+make_umap <- function(highlight, title, file) {
+  colors <- base_colors
+  colors[names(highlight)] <- highlight
+
+  p <- SCpubr::do_DimPlot(
+    mergedALL2,
+    reduction   = "umap.unintegrated",
+    pt.size     = 0.5,
+    colors.use  = colors
+  ) +
+    theme_classic() +
+    NoLegend() +
+    ggtitle(title) +
+    labs(x = NULL, y = NULL)
+
+  # ggsave(file, plot = p, width = 3, height = 3, units = "in", dpi = 600)
+  return(p)
+}
+
+#Generate each figure for each celltype
+astro <- make_umap(
+  highlight = c("Loo_Astro_i1" = "#b36b00", "Loo_Astro_i2" = "#b36b00",
+                "dib_Astro" = "#9b2226", "marcy_P2_Astro" = "#00404d"),
+  title = "Astrocytes",
+  file  = "astro.pdf"
+)
+
+oligo <- make_umap(
+  highlight = c("Loo_Oligo" = "#b36b00", "dib_Oligo" = "#9b2226", "marcy_P2_Oligo" = "#00404d"),
+  title = "Oligodendrocytes",
+  file  = "oligo.pdf"
+)
+
+stemcells <- make_umap(
+  highlight = c("Loo_RG1" = "#b36b00", "Loo_RG2" = "#b36b00", "Loo_RG3" = "#b36b00",
+                "Loo_RG4" = "#b36b00", "Loo_SVZ2_SVZ_E" = "#b36b00",
+                "dib_Apical progenitors" = "#9b2226",
+                "marcy_P2_aNSCs" = "#00404d", "marcy_P2_qNSCs" = "#00404d"),
+  title = "Neural Stem Cells",
+  file  = "Stemcells.pdf"
+)
+
+crc <- make_umap(
+  highlight = c("Loo_C&Rc_P" = "#b36b00", "Loo_C&Rc_E" = "#b36b00", "dib_C&Rc" = "#9b2226"),
+  title = "Cajal-Retzius Cells",
+  file  = "CRc.pdf"
+)
+
+blasts <- make_umap(
+  highlight = c("Loo_SVZ2 migrating 8-P" = "#b36b00", "Loo_SVZ1_mig_P" = "#b36b00",
+                "Loo_SVZ3_Pro_E" = "#b36b00",
+                "dib_progenitors" = "#9b2226",
+                "marcy_P2_TAPs" = "#00404d", "marcy_P2_Neuroblasts" = "#00404d"),
+  title = "Progenitors",
+  file  = "Blasts.pdf"
+)
+
+
+astro + oligo + crc + blasts + stemcells 
+
+# #Optional save
+# ggsave("C:/Users/raine/Desktop/Analyse/Results/astro_highlight.pdf", plot = astro, width = 3, height = 4, units = "in", dpi = 600)
+# ggsave("C:/Users/raine/Desktop/Analyse/Results/oligo_highlight.pdf", plot = oligo, width = 3, height = 4, units = "in", dpi = 600)
+# ggsave("C:/Users/raine/Desktop/Analyse/Results/cajal_highlight.pdf", plot = crc, width = 3, height = 4, units = "in", dpi = 600)
+# ggsave("C:/Users/raine/Desktop/Analyse/Results/progenitor_highlight.pdf", plot = blasts , width = 3, height = 4, units = "in", dpi = 600)
+# ggsave("C:/Users/raine/Desktop/Analyse/Results/nrc_highlight.pdf", plot = stemcells, width = 3, height = 4, units = "in", dpi = 600)
+
+
+```
+
+### Panel H to J 
+
+```{r Quality_control, fig.width=8, fig.height=6, echo = FALSE, message=FALSE, error=FALSE}
+
+DefaultAssay(LooP0E14)    <- "RNA"
+DefaultAssay(dibellasubset) <- "RNA"
+DefaultAssay(marcysubP2b) <- "RNA"
+
+LooP0E14$dataset    <- "LooP0E14"
+dibellasubset$dataset <- "dibellasubset"
+marcysubP2b$dataset <- "marcysubP2b"
+
+add_qc_metrics <- function(obj) {
+  obj$log10GenesPerUMI <- log10(obj$nFeature_RNA) / log10(obj$nCount_RNA)
+  obj$mitoRatio        <- PercentageFeatureSet(obj, pattern = "(?i)^mt-") / 100
+  return(obj)
+}
+
+LooP0E14    <- add_qc_metrics(LooP0E14)
+dibellasubset <- add_qc_metrics(dibellasubset)
+marcysubP2b <- add_qc_metrics(marcysubP2b)
+
+extract_metadata <- function(obj, dataset_name) {
+  md <- obj@meta.data
+  col_to_use <- if ("orig.ident" %in% colnames(md)) "orig.ident" else "orig_ident"
+  md <- md %>%
+    dplyr::select(all_of(c("nCount_RNA", col_to_use, "log10GenesPerUMI", "mitoRatio", "nFeature_RNA")))
+  md$cell_id <- seq_len(nrow(md))
+  md$dataset <- dataset_name
+  return(md)
+}
+
+metadata_combined <- bind_rows(
+  extract_metadata(LooP0E14, "LooP0E14"),
+  extract_metadata(dibellasubset, "dibellasubset"),
+  extract_metadata(marcysubP2b, "marcysubP2b")
+) %>%
+  mutate(dataset_origin = dataset) %>%
+  filter(nCount_RNA > 0, nFeature_RNA > 0, mitoRatio > 0)
+
+dataset_colors <- c(
+  "dibellasubset" = "#ffb5ab",
+  "marcysubP2b"   = "#c2edf7",
+  "LooP0E14"      = "#e9d8a6"
+)
+
+qc_theme <- theme_minimal() +
+  theme(
+    legend.position = "bottom",
+    legend.title    = element_text(size = 12),
+    legend.text     = element_text(size = 10),
+    axis.title      = element_text(size = 12),
+    plot.title      = element_text(size = 14, face = "bold"),
+    legend.box      = "horizontal"
+  )
+
+plot_density <- function(xvar, xlab, title, log_scale = FALSE) {
+  g <- ggplot(metadata_combined, aes_string(x = xvar, color = "dataset_origin", fill = "dataset_origin")) +
+    geom_density(alpha = 0.2, size = 1) +
+    labs(x = xlab, y = "Density", title = title, color = "Dataset") +
+    scale_color_manual(values = dataset_colors) +
+    scale_fill_manual(values = dataset_colors, guide = "none") +
+    qc_theme
+  if (log_scale) g <- g + scale_x_log10(labels = scales::comma_format())
+  return(g)
+}
+
+P <- plot_density("nCount_RNA", "Number of RNA Counts (log scale)", "Distribution of RNA Counts", log_scale = TRUE)
+Q <- plot_density("log10GenesPerUMI", "log10 Genes per UMI", "Distribution of log10 Genes per UMI")
+R <- plot_density("mitoRatio", "Mitochondrial Ratio", "Distribution of Mito Ratio", log_scale = TRUE)
+
+J <- ggplot(metadata_combined, aes(x = nFeature_RNA, color = dataset_origin)) +
+  geom_density(size = 1, alpha = 0.6) +
+  labs(x = "Number of Features (Genes)", y = "Density",
+       title = "Distribution of Detected Genes per Cell", color = "Dataset") +
+  scale_color_manual(values = dataset_colors) +
+  qc_theme
+
+P + Q + R + J
+
+
+## Optional save
+# ggsave("C:/Users/raine/Desktop/Analyse/Results/plot_nCount_RNA.pdf", P, width = 4, height = 3, units = "in", dpi = 600)
+# ggsave("C:/Users/raine/Desktop/Analyse/Results/plot_log10GenesPerUMI.pdf", Q, width = 4, height = 3, units = "in", dpi = 600)
+# ggsave("C:/Users/raine/Desktop/Analyse/Results/plot_mitoRatio.pdf", R, width = 4, height = 3, units = "in", dpi = 600)
+# ggsave("C:/Users/raine/Desktop/Analyse/Results/plot_nFeatures.pdf", J, width = 4, height = 3, units = "in", dpi = 600)
+
+```
+
+### Panel K & L 
+
+```{r seurat_merged_id_cluster, echo = FALSE, error=FALSE, message=FALSE}
+
+seurat_cluster <- SCpubr::do_DimPlot(
+  mergedALL,
+  reduction = "umap",group.by = "seurat_clusters", label.size = 4,label = T,
+  repel=T, pt.size = 0.7)+theme_cowplot()+NoLegend()+
+  ggtitle("Seurat clusters") + # Add a title
+  labs(x = NULL, y = NULL)
+
+merge_cluster <- SCpubr::do_DimPlot(
+  mergedALL,
+  reduction = "umap",group.by = "mergeID", label.size = 2,label = T,
+  repel=T, pt.size = 0.7)+theme_cowplot()+NoLegend()+
+  ggtitle("MergID") + # Add a title
+  labs(x = NULL, y = NULL)
+
+seurat_cluster + merge_cluster
+
+## Optional save
+# ggsave("C:/Users/raine/Desktop/Analyse/Results/seurat_cluster.pdf", seurat_cluster, width = 4, height = 3, units = "in", dpi = 600)
+# ggsave("C:/Users/raine/Desktop/Analyse/Results/mergeID_cluster.pdf", merge_cluster, width = 4, height = 3, units = "in", dpi = 600)
+```
+
+### Panel M to N 
+
+```{r cajal_highlight, echo = FALSE, message=FALSE, error=FALSE}
+Idents(mergedALL) = "mergeID"
+
+Cajal_dib <- DimPlot(mergedALL, reduction = "umap", group.by = "mergeID",
+cells.highlight = WhichCells(mergedALL, idents = "dib_C&Rc"),
+cols.highlight = "red", cols = "gray", pt.size = 0.2) + 
+theme(plot.title = element_text(hjust = 0.4, size = 10)) + 
+NoLegend()
+
+Cajal_loo_E <- DimPlot(mergedALL, reduction = "umap", group.by = "mergeID",
+cells.highlight = WhichCells(mergedALL, idents = "Loo_C&Rc_E"),
+cols.highlight = "red", cols = "gray", pt.size = 0.2) + 
+theme(plot.title = element_text(hjust = 0.4, size = 10)) + 
+NoLegend()
+
+Cajal_loo_P <- DimPlot(mergedALL, reduction = "umap", group.by = "mergeID",
+cells.highlight = WhichCells(mergedALL, idents = "Loo_C&Rc_P"),
+cols.highlight = "red", cols = "gray", pt.size = 0.2) + 
+theme(plot.title = element_text(hjust = 0.4, size = 10)) + 
+NoLegend()
+
+Cajal_dib
+Cajal_loo_E
+Cajal_loo_P
+
+
+# #Optional save
+# ggsave("C:/Users/raine/Desktop/Analyse/Results/cajalinall1.pdf", plot = Cajal_dib, width = 5, height = 5, units = "in", dpi = 600)
+# ggsave("C:/Users/raine/Desktop/Analyse/Results/cajalinall2.pdf", plot = Cajal_loo_E, width = 5, height = 5, units = "in", dpi = 600)
+# ggsave("C:/Users/raine/Desktop/Analyse/Results/cajalinall3.pdf", plot = Cajal_loo_P, width = 5, height = 5, units = "in", dpi = 600)
+
+```
+
+## Figure 4 
+
+```{r markers_svz, echo = FALSE, error=FALSE, message=FALSE}
+selected_genes <- list(
+  qNSCs = c("Hopx", "Sox9", "Id4"),
+  aNSCs = c("Mki67", "Ascl1", "Sox2"),
+  Oligo = c("Cntn1", "Olig2", "Olig1"),
+  NP = c("Neurog2", "Dlx2", "Cenpf"),
+  ImAstro = c("Gfap", "Aqp4", "Aldh1l1"),
+  CR = c("Reln", "Ebf3", "Trp73"),
+  Neuroblasts = c("Dcx", "Tubb3", "Stmn2"),
+  RG = c("Hes1", "Vim", "Pax6")
+)
+Idents(mergedALL) = "new_ident"
+colors <- c(
+"qNSCs" = "#003f5c",
+"aNSCs" = "#C7E9B4",
+"Oligo" = "#ffa600",
+"NP" = "#7FCDBB",
+"ImAstro" = "#225EA8",
+"CR" = "#fecc00",
+"Neuroblasts" = "#e8f5a2",
+"RG" = "#1D91C0"
+)
+# General UMAP
+general_umap <- DimPlot(
+mergedALL,
+reduction = "umap",
+cols = colors,label.box = T,
+label.size = 6,
+label = TRUE,
+repel = TRUE,
+pt.size = 0.7
+)  +
+theme_cowplot() +
+ggtitle("New_ident_based on clustersubtype")+
+labs(x = NULL, y = NULL) + 
+theme(
+axis.ticks = element_blank(), 
+axis.text = element_blank() 
+)+
+  coord_fixed()+ NoLegend() 
+
+# Update FeaturePlot function to enlarge all text
+make_feature_plots <- function(genes, cluster_color) {
+  plots <- list()
+  for (gene in genes) {
+    if (gene %in% rownames(mergedALL)) {
+      p <- FeaturePlot(
+        mergedALL,
+        features = gene,
+        reduction = "umap",
+        cols = c("lightgrey", cluster_color),
+        pt.size = 1
+      ) +
+        ggtitle(gene) +
+        theme_classic() +
+        theme(
+          plot.title = element_text(hjust = 0.5, face = "bold", size = 24),
+          axis.text = element_blank(),
+          axis.ticks = element_blank(),
+          axis.title = element_blank(),
+          legend.title = element_text(size = 20),
+          legend.text = element_text(size = 16)
+        ) +
+        coord_fixed()
+      plots[[gene]] <- p
+    }
+  }
+  return(plots)
+}
+
+all_rows <- list()
+
+first_cluster <- names(selected_genes)[1]
+first_fplots <- make_feature_plots(selected_genes[[first_cluster]], colors[first_cluster])
+first_row <- general_umap | first_fplots[[1]] | first_fplots[[2]] | first_fplots[[3]]
+all_rows[[1]] <- first_row
+
+remaining_clusters <- names(selected_genes)[-1]
+for (cluster_name in remaining_clusters) {
+  genes <- selected_genes[[cluster_name]]
+  cluster_color <- colors[cluster_name]
+  
+  fplots <- make_feature_plots(genes, cluster_color)
+  row <- plot_spacer() | fplots[[1]] | fplots[[2]] | fplots[[3]]
+  all_rows[[cluster_name]] <- row
+}
+
+num_rows <- length(all_rows)
+row_heights <- rep(2, num_rows) 
+
+final_figure <- wrap_plots(all_rows, ncol = 1, heights = row_heights)
+
+
+#Optional save
+# ggsave("C:/Users/raine/Desktop/Analyse/Results/UMAP_SelectedGenes_AllRowsAligned.pdf",
+       # plot = final_figure,
+       # width = 22,
+       # height = num_rows * 5
+# )
+```
+
+## Figure 5
+
+### Panel A
+
+```{r umap_cajal_retzius, echo = FALSE, message=FALSE, error=FALSE}
+umap_cajal_retzius <- SCpubr::do_DimPlot(Cajal,
+                                         reduction = "umap.pca",
+                                         group.by = c("mergeID"),
+                                         plot.axes = T,
+                                         label.size = 4,
+                                         label = T,
+                                         repel=T,
+                                         pt.size = 2)
+umap_cajal_retzius
+
+#Optional save 
+# ggsave("C:/Users/raine/Desktop/Analyse/Results/umap_cajal_retzius.pdf", plot = umap_cajal_retzius, width = 5, height = 5, units = "in", dpi = 600)
+
+
+```
+
+### Panel B
+
+```{r Reln_expression_pseudotime, echo = FALSE, message=FALSE, error=FALSE}
+Reln_expression_pseudotime <- SCpubr::do_NebulosaPlot(
+sample = Cajal,
+features = "Reln",
+reduction = "umap.pca",pt.size = 2
+) +
+ggtitle("Reln expression")
+
+Reln_expression_pseudotime
+
+#Optional save 
+# ggsave("C:/Users/raine/Desktop/Analyse/Results/Reln_expression_pseudotime.pdf", plot = Reln_expression_pseudotime, width = 6, height = 5, units = "in", dpi = 600)
+
+```
+
+### Panel C
+
+```{r contribution_bmp, error=FALSE, message=FALSE, echo = FALSE, error=FALSE, message=FALSE}
+pairBMP <- extractEnrichedLR(cellchat, signaling = "BMP", geneLR.return = FALSE)
+datatable(pairBMP)
+par(cex = 2.5)  # Increase text size
+bmp_contribution <- netAnalysis_contribution(cellchat, signaling = "BMP")
+bmp_contribution
+
+#Optional save 
+# ggsave("C:/Users/raine/Desktop/Analyse/Results/bmp_contribution.pdf", plot = bmp_contribution, width = 6, height = 5, units = "in", dpi = 600)
+
+
+```
+
+### Panel D
+
+```{r gene_expression_pseudotime, echo = FALSE, message=FALSE, error=FALSE}
+pseudotime <- slingPseudotime(slingshot.obj)
+Cajal[["RNA"]] <- as(object = Cajal[["RNA"]], Class = "Assay")
+Bmpr1a_expression <- Cajal@assays$RNA@data["Bmpr1a", ]
+Bmpr2_expression <- Cajal@assays$RNA@data["Bmpr2", ]
+Bmp5_expression <- Cajal@assays$RNA@data["Bmp5", ]
+Bmp7_expression <- Cajal@assays$RNA@data["Bmp7", ]
+Casp3_expression <- Cajal@assays$RNA@data["Casp3", ]
+Bax_expression <- Cajal@assays$RNA@data["Bax", ]
+Casp9_expression <- Cajal@assays$RNA@data["Casp9", ]
+
+gene_list <- list(
+"Bmpr1a" = Bmpr1a_expression,
+"Bmpr2" = Bmpr2_expression,
+"Bmp5" = Bmp5_expression,
+"Bmp7" = Bmp7_expression,
+"Casp3" = Casp3_expression,
+"Casp9" = Casp9_expression,
+"Bax" = Bax_expression
+)
+
+# Add these expression vectors to plot_data for easier ggplot use
+for (gene in names(gene_list)) {
+plot_data[[paste0(gene, "_expression")]] <- gene_list[[gene]]
+}
+# Create the list of plots
+plot_list <- lapply(names(gene_list), function(gene) {
+ggplot(plot_data, aes_string(x = "pseudotime", y = paste0(gene, "_expression"))) +
+geom_point(aes(color = pseudotime), size = 1.5) +
+scale_color_gradientn(colors = c("grey90", "grey30")) +
+geom_smooth(method = "loess", color = "black") +
+xlab("Pseudotime") +
+ylab(paste("Expression of", gene)) +
+theme_cowplot()
+})
+plot_list
+
+# Combine all plots into a grid (auto layout)
+combined_plot <- wrap_plots(plot_list)
+
+combined_plot
+# Save to a single-page PDF
+# ggsave("C:/Users/raine/Desktop/Analyse/Results/gene_expression_on_one_page.pdf", combined_plot, width = 12, height = 8)
+```
