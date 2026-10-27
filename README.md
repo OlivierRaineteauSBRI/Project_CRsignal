@@ -4,7 +4,9 @@
 
 <p align="justify">
 
-Welcome to the GitHub repository related to our publication ***Cajal-Retzius cells shape postnatal forebrain germinal activity through BMPR1A signaling***, _[First name] Capeliez<sup>1,2</sup>, Guillaume Marcy<sup>3</sup>, Louis Foucault<sup>4,5</sup>, Amel Ahraoui<sup>1,2</sup>, [First name] Gelin<sup>9</sup>, France Pietri-Rouxel<sup>9</sup>, Sestina Falcone<sup>9</sup>, Frédéric Causeret<sup>7,8</sup>, <ins>Olivier Raineteau</ins><sup>1,2</sup>,_ [Journal], 2026
+Welcome to the GitHub repository related to our publication ***Cajal-Retzius cells shape postnatal forebrain germinal activity through BMPR1A signaling*** 
+</p>
+_Timothy Capeliez<sup>1,2</sup>, Guillaume Marcy<sup>3</sup>, Louis Foucault<sup>4,5</sup>, Amele Ahraoui<sup>1,2</sup>, [First name] Gelin<sup>9</sup>, France Pietri-Rouxel<sup>9</sup>, Sestina Falcone<sup>9</sup>, Frédéric Causeret<sup>7,8</sup>, <ins>Olivier Raineteau</ins><sup>1,2</sup>,_ STEM CELL REPORTS, 2026
 
 </p>
 
