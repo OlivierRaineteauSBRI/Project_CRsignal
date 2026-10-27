@@ -61,25 +61,13 @@ stem-cell behavior is coordinated within the postnatal forebrain.
 - Cajal-Retzius cell depletion leads to enhanced NSC activation and neurogenic output within the dorsal V-SVZ
 - Regional differences in the persistence of NSC radial processes spatially shape BMP signaling in postnatal NSCs
 
-## Analysis workflow
 
-```mermaid
-flowchart LR
-    A["Loo et al.<br/>GSE123335<br/>E14.5 · P0"] --> D
-    B["Di Bella et al.<br/>GSE153164<br/>E13 → P4"] --> D
-    C["Marcy et al.<br/>GSE186003<br/>dorsal V-SVZ, P2"] --> D
-    D["Subset shared cell types<br/>downsample 5,000 cells / dataset"] --> E["SCTransform v2<br/>+ Seurat integration"]
-    E --> F["Clustering & annotation<br/>(Fig. 3B–D, Supp. 2–3)"]
-    F --> G["CellChat<br/>BMP signaling<br/>(Fig. 3E–F, Supp. 4C)"]
-    F --> H["CR-cell subset<br/>Slingshot pseudotime<br/>(Fig. 4A–C, Supp. 4)"]
-```
-
-## Files you'll find in [scripts](https://github.com/OlivierRaineteauSBRI/Project_CRsignal/tree/main/scripts)
+## Files in [scripts](https://github.com/OlivierRaineteauSBRI/Project_CRsignal/tree/main/scripts)
 
 The analysis is split into two steps: the first script builds all the objects, the second one draws the figures from them.
 
 - ``1_script_object.R`` : data processing and integration. Subsets and downsamples the three datasets, builds the unintegrated and SCT-integrated objects, clusters and annotates cells, isolates Cajal-Retzius cells and infers their pseudotime (Slingshot), then runs the CellChat analysis. All objects are saved in ``Data/data_processed/``.
-- ``2_figures.Rmd`` : loads the processed objects and reproduces every single-cell panel of the paper. Knit it in RStudio to obtain an HTML report with a navigable table of contents.
+- ``2_figures.Rmd`` : loads the processed objects and reproduces every single-cell panel of the paper.
 
 | Figure in the paper | Content | Section in ``2_figures.Rmd`` |
 |---|---|---|
@@ -95,20 +83,6 @@ The analysis is split into two steps: the first script builds all the objects, t
 | **Supp. Figure 3** | Feature plots of the markers used to define cell types | Supplementary · Figure 4 |
 | **Supp. Figure 4** | Cajal-Retzius subset, *Reln* density, BMP pair contributions, pseudotime expression | Supplementary · Figure 5 |
 
-## Repository structure
-
-```
-Project_CRsignal/
-├── scripts/
-│   ├── 1_script_object.R      # step 1 – processing, integration, pseudotime, CellChat
-│   └── 2_figures.Rmd          # step 2 – figure panels
-├── Data/                      # input Seurat objects (not tracked, see below)
-│   └── data_processed/        # objects written by step 1
-├── Results/                   # exported PDF figures
-├── Readme_illustration/
-├── git_use.md
-└── README.md
-```
 
 ## Prerequisites
 
@@ -128,25 +102,21 @@ Project_CRsignal/
 
 ## To get started
 
-1. **Clone** this repository via RStudio (``File`` › ``New Project`` › ``Version Control`` › ``Git``). New to Git? Check the ``git_use.md`` file to learn how to use Git and GitHub from RStudio.
+1. **Clone** this repository via RStudio (``File`` › ``New Project`` › ``Version Control`` › ``Git``).
 2. **Restore the environment** with the ``renv`` package: ``renv::restore()``.
 3. **Place the input objects** in ``Data/`` (see *Data availability*): ``Loo_E14.rds``, ``Loo_P0.rds``, ``di_bella_full.rds`` and ``same_umap_P2_P12_P22.rds``.
 4. **Run** ``scripts/1_script_object.R`` to generate the processed objects in ``Data/data_processed/``. Integration and CellChat are memory-intensive; we recommend at least [XX] GB of RAM.
 5. **Knit** ``scripts/2_figures.Rmd`` to reproduce the figure panels. Uncomment the ``ggsave()`` lines to export each panel as a PDF in ``Results/``.
 
-> A random seed (``set.seed(42)``) is set at the beginning of the pipeline so that downsampling, clustering and UMAP embeddings are reproducible.
-
 ## Data availability
 
 This study re-analyses three publicly available single-cell RNA-sequencing datasets:
 
-| Dataset | Accession | Content | Input file expected in ``Data/`` |
-|---|---|---|---|
-| Loo et al. | [GSE123335](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE123335) | E14.5 and P0 pallium and overlying cortex | ``Loo_E14.rds``, ``Loo_P0.rds`` |
-| Di Bella et al. | [GSE153164](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE153164) | Prospective somatosensory cortex, E10.5 to P4 | ``di_bella_full.rds`` |
-| Marcy et al. | [GSE186003](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE186003) | Dorsal V-SVZ at P2, P12 and P22 | ``same_umap_P2_P12_P22.rds`` |
-
-[Describe here how the ``.rds`` input objects were generated from the public data, or where they can be downloaded.]
+| Dataset | Accession | Content | 
+|---|---|---|
+| Loo et al. | [GSE123335](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE123335) | E14.5 and P0 pallium and overlying cortex |
+| Di Bella et al. | [GSE153164](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE153164) | Prospective somatosensory cortex, E10.5 to P4 |
+| Marcy et al. | [GSE186003](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE186003) | Dorsal V-SVZ at P2, P12 and P22 |
 
 All other data supporting the findings of this study are available from the corresponding author upon reasonable request.
 
@@ -160,7 +130,7 @@ This research was supported by ANR ProgenID (ANR-18-CE16-0014), ANR NeoRepair (A
 - [Profile](https://github.com/OlivierRaineteauSBRI "Olivier Raineteau")
 - [Email](mailto:olivier.raineteau@inserm.fr?subject=Hi% "Hi!")
 
-**[First name] Capeliez** _first author_
+**Timothy Capeliez** _first author_
 - [Email](mailto:[EMAIL]?subject=Hi% "Hi!")
 
 **Guillaume Marcy**
@@ -170,7 +140,7 @@ This research was supported by ANR ProgenID (ANR-18-CE16-0014), ANR NeoRepair (A
 - [Profile](https://github.com/LouisFoucault "Louis Foucault")
 - [Email](mailto:louis.foucault@kuleuven.be?subject=Hi% "Hi!")
 
-**Amel Ahraoui**
+**Amele Ahraoui**
 - [Profile](https://github.com/amelahra "Amel Ahraoui")
 - [Email](mailto:[EMAIL]?subject=Hi% "Hi!")
 
