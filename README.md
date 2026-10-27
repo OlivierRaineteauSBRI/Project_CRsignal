@@ -1,6 +1,6 @@
 <img src="https://img.shields.io/badge/R-276DC3?style=for-the-badge&logo=r&logoColor=white">  <img src="https://img.shields.io/badge/Seurat-v5.3.0-1F3B5E?style=for-the-badge">  <img src="https://img.shields.io/badge/CellChat-v1.6.1-F2A541?style=for-the-badge">  <img src="https://img.shields.io/badge/Bioconductor-Slingshot-4FD1A5?style=for-the-badge">
 
-![Project banner](Readme_illustration/banner.svg)
+![Project banner](Readme_illustration/banner.png)
 
 <p align="justify">
 
